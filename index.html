@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>누가 내 데이터에 바이러스를 심었어? : 더티 로그 (Dirty Log)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+KR:wght@300;700&display=swap');
+
+        :root {
+            /* [색상 구성] 더 어두운 갈색 블랙 베이스 + 거친 일렉트릭 브라운/브론즈 포인터 */
+            --bg-deep: #110905;          /* 더 무겁고 딥한 갈색 블랙 */
+            --bg-panel: #1a0f0a;         /* 어둡게 침전된 시스템 단말기 패널 색상 */
+            --neon-red: #FF0055;         /* 생명력용 마젠타 레드 */
+            --electric-purple: #BC00FF;  /* 부패도용 네온 보라 */
+            --teal-cyan: #ab7a4a;        /* 기본 인터페이스 테마: 거친 일렉트릭 브라운 */
+            --interaction-cyan: #00f3ff; /* 인터랙션용 강렬한 네온 시안 */
+            --neon-mint: #00F5a0;        /* 신뢰도용 네온 민트 */
+            --amber-gold: #c26e00;       /* 추적 위험도용 경고 앰버 (어둡게 조율) */
+            --system-bronze: #4d3119;    /* 인터페이스 구분선용 산화된 어두운 브론즈 */
+            --text-main: #e3d3c1;        /* 탁한 크림 화이트 */
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: 'Noto Sans KR', sans-serif;
+            height: 100vh;
+            display: flex; flex-direction: column;
+            overflow: hidden; position: relative;
+        }
+
+        /* 거친 질감 레이어 효과 고정 */
+        body::before {
+            content: ""; position: absolute; inset: 0;
+            background: 
+                url('https://www.transparenttextures.com/patterns/brushed-alum.png'),
+                radial-gradient(circle at center, transparent 0%, rgba(17, 9, 5, 0.95) 100%);
+            opacity: 0.4; z-index: 100; pointer-events: none;
+        }
+
+        /* ========================================================
+           독립된 게임 전용 표지 (Title Cover) 레이아웃
+        ======================================================== */
+        #game-cover {
+            position: fixed; inset: 0;
+            background-color: var(--bg-deep);
+            z-index: 500;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+
+        #game-cover .cover-circuit {
+            position: absolute; inset: 0;
+            background-image: linear-gradient(rgba(171, 122, 74, 0.03) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(171, 122, 74, 0.03) 1px, transparent 1px);
+            background-size: 60px 60px; opacity: 0.7; z-index: 1;
+        }
+
+        /* [수정] 가장 하단부 중앙 배치 + 조금 더 작은 크기 + 연한 글씨 */
+        .cover-meta {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 5;
+            font-family: 'Share Tech Mono', sans-serif;
+            font-size: 0.9rem; letter-spacing: 2px;
+            color: var(--text-main); opacity: 0.4; /* 연하게 조절 */
+            text-shadow: 0 0 5px rgba(171, 122, 74, 0.2);
+            text-align: center; width: 100%;
+        }
+
+        /* 표지 중앙 콘텐츠 정렬용 박스 (수직 배치) */
+        .cover-content {
+            z-index: 5; display: flex; flex-direction: column; align-items: center; gap: 40px;
+            text-align: center;
+        }
+
+        /* 표지 전용 대형 두더지 눈 */
+        .cover-eyes {
+            display: flex; gap: 35px;
+            filter: drop-shadow(0 0 12px var(--interaction-cyan));
+        }
+        .cover-eyes .eye {
+            width: 14px; height: 14px;
+            background: #fff; border-radius: 50%;
+            animation: eye-blink 4s infinite;
+        }
+
+        /* 표지 전용 대형 타이틀 */
+        .cover-title {
+            font-family: 'Share Tech Mono', sans-serif;
+            font-size: 4rem; font-weight: bold; letter-spacing: 12px;
+            color: #fff; text-shadow: 0 0 25px rgba(171, 122, 74, 0.6);
+            margin-right: -12px;
+        }
+
+        /* 표지 전용 시스템 접속하기 버튼 (가운데 크게 배치) */
+        .cover-btn {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            border: 1px solid rgba(171, 122, 74, 0.4); border-radius: 8px;
+            padding: 20px 60px; font-size: 1.2rem; font-weight: bold; color: #fff;
+            cursor: pointer; letter-spacing: 4px;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+        }
+        .cover-btn:hover {
+            background-color: rgba(0, 243, 255, 0.08);
+            border-color: var(--interaction-cyan);
+            transform: translateY(-5px);
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.4),
+                        inset 0 0 15px rgba(0, 243, 255, 0.2);
+            text-shadow: 0 0 8px rgba(0, 243, 255, 0.8);
+        }
+
+        /* ========================================================
+           [인게임] 구조 및 기존 스타일 유지
+        ======================================================== */
+        header {
+            height: 90px; display: flex; justify-content: space-between; align-items: center;
+            padding: 0 40px; border-bottom: 3px solid var(--system-bronze);
+            background: rgba(26, 15, 10, 0.98); z-index: 150;
+            box-shadow: 0 5px 30px rgba(17, 9, 5, 0.9);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 40px; }
+
+        .title-box {
+            border-left: 5px solid var(--teal-cyan); padding-left: 15px;
+            font-family: 'Share Tech Mono'; font-size: 1.4rem; letter-spacing: 3px;
+            color: #fff; text-shadow: 0 0 10px var(--teal-cyan);
+        }
+
+        .mole-eyes { 
+            display: flex; gap: 20px; 
+            filter: drop-shadow(0 0 6px var(--teal-cyan)); 
+        }
+        .mole-eyes .eye { 
+            width: 8px; height: 8px; 
+            background: #fff; border-radius: 50%; 
+            animation: eye-blink 5s infinite; 
+        }
+
+        @keyframes eye-blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.1); } }
+
+        .gauges-container { display: flex; gap: 15px; }
+        .gauge-unit { width: 105px; }
+        .gauge-info { 
+            font-family: 'Share Tech Mono', sans-serif; font-size: 0.65rem; 
+            display: flex; justify-content: space-between; margin-bottom: 5px;
+            color: var(--text-main); font-weight: bold;
+        }
+        .gauge-track { width: 100%; height: 5px; background: rgba(0,0,0,0.8); }
+        .gauge-bar { height: 100%; transition: width 0.8s cubic-bezier(0.19, 1, 0.22, 1); }
+
+        main { flex: 1; display: flex; overflow: hidden; }
+
+        #stage {
+            flex: 6.5; position: relative; display: flex; justify-content: center; align-items: center;
+            background: linear-gradient(135deg, #110905 0%, #24140b 100%);
+            border-right: 2px solid var(--system-bronze); padding: 40px;
+        }
+
+        .circuit-bg {
+            position: absolute; inset: 0;
+            background-image: linear-gradient(rgba(171, 122, 74, 0.03) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(171, 122, 74, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px; opacity: 0.6; z-index: 1;
+        }
+
+        .stage-display-box {
+            z-index: 2; width: 100%; height: 100%;
+            border: 1px solid rgba(171, 122, 74, 0.15); background: rgba(0, 0, 0, 0.7);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            overflow: hidden; position: relative;
+        }
+
+        .hud-display {
+            position: absolute; bottom: 25px; left: 30px; z-index: 3;
+            font-family: 'Share Tech Mono'; color: var(--system-bronze); font-size: 0.85rem;
+            letter-spacing: 1px; text-shadow: 0 0 5px var(--system-bronze);
+        }
+
+        aside {
+            flex: 3.5; background: var(--bg-panel); padding: 40px;
+            display: flex; flex-direction: column; gap: 30px;
+            box-shadow: inset 15px 0 35px rgba(0,0,0,0.9); z-index: 5;
+        }
+
+        .meta-group { border-bottom: 2px solid var(--system-bronze); padding-bottom: 15px; }
+        .scene-path { font-family: 'Share Tech Mono'; color: var(--teal-cyan); font-size: 0.8rem; }
+        .scene-title { font-size: 1.6rem; font-weight: 700; margin-top: 5px; color: #fff; text-shadow: 0 0 10px rgba(171, 122, 74, 0.2); }
+
+        .dialogue-box { flex: 1; display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
+        .status-label { 
+            font-family: 'Share Tech Mono'; font-size: 0.7rem; color: var(--teal-cyan); 
+            border: 1px solid var(--teal-cyan); padding: 3px 10px; margin-bottom: 20px; display: inline-block;
+            box-shadow: 0 0 8px rgba(171, 122, 74, 0.15); align-self: flex-start;
+        }
+        #text-area { font-size: 1.05rem; line-height: 1.75; color: #cbd5e1; white-space: pre-line; word-break: keep-all; transition: opacity 0.3s; }
+
+        .choices-container { display: flex; flex-direction: column; gap: 14px; }
+        
+        .choice-card {
+            background: rgba(255, 255, 255, 0.02); 
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(171, 122, 74, 0.3); border-radius: 8px; 
+            padding: 18px 22px; cursor: pointer; color: #fff; text-align: left; font-size: 0.95rem;
+            position: relative; transition: all 0.35s cubic-bezier(0.25, 1, 0.5, 1); 
+            will-change: transform, background-color, border-color, box-shadow;
+        }
+
+        .choice-card:hover:not(.disabled) {
+            background-color: rgba(0, 243, 255, 0.08); border-color: var(--interaction-cyan);       
+            transform: translateX(-10px); 
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.35), inset 0 0 12px rgba(0, 243, 255, 0.15);
+        }
+
+        .choice-card:hover:not(.disabled) .node-prefix {
+            color: var(--interaction-cyan); text-shadow: 0 0 8px rgba(0, 243, 255, 0.6);
+        }
+
+        .stat-capsule {
+            font-family: 'Share Tech Mono'; font-size: 0.75rem; background: rgba(0, 0, 0, 0.4);
+            padding: 2px 6px; border-radius: 4px; margin-left: 8px; color: #ff9d00;
+            border: 1px solid rgba(255, 157, 0, 0.2); display: inline-block; vertical-align: middle;
+        }
+        .choice-card:hover:not(.disabled) .stat-capsule { border-color: rgba(0, 243, 255, 0.4); color: #fff; }
+
+        .choice-card.disabled {
+            opacity: 0.15; cursor: not-allowed; border-color: #2b1a10; color: #555; backdrop-filter: none;
+        }
+
+        .node-prefix { 
+            font-family: 'Share Tech Mono'; color: var(--teal-cyan); font-size: 0.8rem; 
+            margin-right: 10px; transition: color 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-cover">
+        <div class="cover-circuit"></div>
+        <div class="cover-meta">25730072 | 이소정</div>
+        <div class="cover-content">
+            <div class="cover-eyes">
+                <div class="eye"></div>
+                <div class="eye"></div>
+            </div>
+            <div class="cover-title">DIRTY LOG</div>
+            <div class="cover-btn" onclick="pressStart()">[시스템 접속하기]</div>
+        </div>
+    </div>
+
+    <header>
+        <div class="header-left">
+            <div class="title-box">DIRTY LOG</div>
+            <div class="mole-eyes">
+                <div class="eye"></div>
+                <div class="eye"></div>
+            </div>
+        </div>
+
+        <div class="gauges-container">
+            <div class="gauge-unit">
+                <div class="gauge-info">생명력 <span id="v-val">100</span></div>
+                <div class="gauge-track"><div id="v-bar" class="gauge-bar" style="background:var(--neon-red); width:100%"></div></div>
+            </div>
+            <div class="gauge-unit">
+                <div class="gauge-info">부패도 <span id="c-val">85</span></div>
+                <div class="gauge-track"><div id="c-bar" class="gauge-bar" style="background:var(--electric-purple); width:85%"></div></div>
+            </div>
+            <div class="gauge-unit">
+                <div class="gauge-info">해킹능력 <span id="h-val">20</span></div>
+                <div class="gauge-track"><div id="h-bar" class="gauge-bar" style="background:var(--teal-cyan); width:20%"></div></div>
+            </div>
+            <div class="gauge-unit">
+                <div class="gauge-info">신뢰도 <span id="i-val">50</span></div>
+                <div class="gauge-track"><div id="i-bar" class="gauge-bar" style="background:var(--neon-mint); width:50%"></div></div>
+            </div>
+            <div class="gauge-unit">
+                <div class="gauge-info">추적위험도 <span id="n-val">10</span></div>
+                <div class="gauge-track"><div id="n-bar" class="gauge-bar" style="background:var(--amber-gold); width:10%"></div></div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section id="stage">
+            <div class="circuit-bg"></div>
+            <div class="stage-display-box" id="stage-box"></div>
+            <div class="hud-display">
+                LOC: 35.6895 // 139.6917 // SYSTEM_SYNC: <span id="clock">60:00</span>
+            </div>
+        </section>
+
+        <aside>
+            <div class="meta-group">
+                <div id="path-display" class="scene-path"></div>
+                <div id="title-display" class="scene-title"></div>
+            </div>
+
+            <div class="dialogue-box">
+                <div class="status-label" id="status-label">ID: MOLE | STATUS: RUNNING</div>
+                <div id="text-area"></div>
+            </div>
+
+            <div class="choices-container" id="choices"></div>
+        </aside>
+    </main>
+
+    <script>
+        let state = {
+            생명력: 100,
+            부패도: 85,
+            해킹능력: 20,
+            신뢰도: 50,
+            추적위험도: 10
+        };
+
+        let s04Passed = false; 
+        let countdownTime = 3600; 
+        let timerInterval;
+
+        function pressStart() {
+            const cover = document.getElementById('game-cover');
+            cover.style.opacity = '0';
+            cover.style.transform = 'scale(1.05)';
+            setTimeout(() => {
+                cover.style.display = 'none';
+                startTimer();
+            }, 500);
+        }
+
+        const scenario = {
+            S01: {
+                path: "PHASE 1 // DATA TRACKING",
+                title: "낙인: 42구역",
+                status: "ID: MOLE | STATUS: RUNNING",
+                text: "(지문 전) 타들어 가는 목덜미 소켓을 움켜쥐며 스파크 속에 미간을 찌푸린다. 벽에 거칠게 몸을 기대어 간신히 중심을 잡고 뱉어낸다.\n\n몰: \"누가 내 서버에 이딴 쓰레기를 버린 거야? 이대로면 1시간 뒤에 난 '포맷'이라고!\"\n\n(지문 후) 손바닥을 바라보자 인공 피부가 보라색 데이터 찌꺼기로 변색되고 있다. 떨리는 손으로 홀로그램 패널을 띄우며 망설인다.",
+                choices: [
+                    { text: "시스템 정밀 분석", info: "해킹+15 위험+5", effect: { 해킹능력: 15, 추적위험도: 5 }, next: 'S02_CHECK' },
+                    { text: "강제 로그 우회", info: "해킹-10 신뢰+15", effect: { 해킹능력: -10, 신뢰도: 15 }, next: 'S02_CHECK' }
+                ]
+            },
+            S02_FRIENDLY: {
+                path: "PHASE 1 // EVIDENCE",
+                title: "대조: 폐기물 처리장 (우호)",
+                status: "ID: OX | STATUS: FRIENDLY",
+                text: "(지문 전) 소가 육중한 고개를 까딱이자 냉각 밸브에서 고압 증기가 뿜어진다. 규격화된 시스템에 집착하는 기계적 독백이 이어진다.\n\n소: \"내 로그는 규격품이다. 네 오염된 데이터와 내 로그를 대조하는 건 본래 시스템 모독이지만... 네 진정성을 보아 협상 코드를 열어주지.\"\n\n(지문 후) 거대한 피스톤 팔이 진동하자 몰은 마른침을 삼킨다. 정면 돌파와 수리 협상 사이에서 손가락을 미세하게 까딱인다.",
+                choices: [
+                    { text: "시스템 강제 해킹", info: "해킹+20 신뢰-20", effect: { 해킹능력: 20, 신뢰도: -20 }, next: 'S03' },
+                    { text: "냉각 장치 수리 협상", info: "신뢰+20 위험-10", effect: { 신뢰도: 20, 추적위험도: -10 }, next: 'S03' }
+                ]
+            },
+            S02_HOSTILE: {
+                path: "PHASE 1 // EVIDENCE",
+                title: "대조: 폐기물 처리장 (적대)",
+                status: "ID: OX | STATUS: HOSTILE",
+                text: "(지문 전) 소가 육중한 고개를 까딱이자 냉각 밸브에서 고압 증기가 뿜어진다. 규격화된 시스템에 집착하는 기계적 독백이 이어진다.\n\n소: \"내 로그는 규격품이다. 네 오염된 데이터와 내 로그를 대조하는 건 시스템 모독이다. 쓰레기는 압착기가 처리한다.\"\n\n(지문 후) 거대한 피스톤 팔이 진동하자 몰은 마른침을 삼킨다. 정면 돌파와 수리 협상 사이에서 손가락을 미세하게 까딱인다.",
+                choices: [
+                    { text: "시스템 강제 해킹", info: "해킹+20 신뢰-20", effect: { 해킹능력: 20, 신뢰도: -20 }, next: 'S03' },
+                    { text: "냉각 장치 수리 협상", info: "신뢰+20 위험-10", effect: { 신뢰도: 20, 추적위험도: -10 }, next: 'S03' }
+                ]
+            },
+            S03: {
+                path: "PHASE 2 // PURSUIT",
+                title: "추격: 하이웨이",
+                status: "ID: RABBIT | STATUS: PURSUIT",
+                text: "(지문 전) 토끼가 헬멧 바이저를 올리며 백미러로 몰을 비웃는다. 손가락으로 V를 그리며 조롱의 텍스트를 통신망에 꽂아 넣는다.\n\n토끼: \"잡아보시지, 하층민! 내 전송 속도는 네 구식 의체로는 절대 못 따라잡아!\"\n\n(지문 후) 토끼가 부스터를 당겨 멀어진다. 몰은 과열된 계기판과 붉은 경고등을 보며 코어를 불태울지 연산할지 순간적으로 멈칫한다.",
+                choices: [
+                    { text: "경로 예측 해킹 (필요 해킹능력: 70)", info: "해킹+15 위험+10", condition: () => state.해킹능력 >= 70, effect: { 해킹능력: 15, 추적위험도: 10 }, next: 'S04' },
+                    { text: "신체 엔진 오버클럭 (강제 실행 위험)", info: "해킹-10 생명-20", condition: () => true, effect: { 해킹능력: -10, 생명력: -20 }, next: 'S05_CHECK' }
+                ]
+            },
+            S04: {
+                path: "PHASE 2 // EVIDENCE",
+                title: "포획: 토끼 제압 완료",
+                status: "ID: MOLE | STATUS: EXTRACTING",
+                text: "(지문 전) 몰은 거칠게 숨을 몰아쉬며, 겁에 질린 토끼의 뒷덜미에 데이터 케이블을 사정없이 꽂아 넣는다. 토끼의 몸이 파르르 떨린다.\n\n(지문): 몰은 토끼의 메모리에서 한스의 보안 취약점이 담긴 패킷을 찾아낸다. 이 약점은 최종 본거지 침투 시 방화벽을 우회하는 열쇠가 될 것이다.\n\n(지문 후) 복수심에 가득 찬 눈으로 순백의 약점 패킷을 응시하던 몰은, 이내 결심한 듯 케이블을 난폭하게 뽑아내며 비둘기를 떠올린다.",
+                choices: [
+                    { text: "암시장 비둘기 접선 통로 진입 (무기 거래)", info: "보안 약점 확보", effect: {}, next: 'S06' }
+                ]
+            },
+            S05: {
+                path: "PHASE 2 // ALLIANCE MISERY",
+                title: "미궁: 시스템 과부하 고립",
+                status: "ID: MOLE | STATUS: MISERY",
+                text: "(지문 전) 사방의 벽이 무한 복제되며 무너진다. 시야의 기하학적 형상들이 자신을 비웃는 한스의 얼굴로 보이자 공포에 질려 비명을 지른다.\n\n몰: \"젠장, 데이터가 엉망이야... 여기서 못 나가면 그대로 자아 분열이라고!\"\n\n(지문 후) 유령 같은 제어 콘솔을 붙잡으려 허우적거린다. 리부팅의 위험과 전멸의 공포 사이에서 몰의 손끝이 차갑게 식어간다.",
+                choices: [
+                    { text: "로그 재구축 시도 (리부팅 패키지)", info: "생명력 -20 대가", effect: {}, next: 'RE_03' },
+                    { text: "접속 종료 (자멸 프로토콜)", info: "GAME OVER", effect: {}, next: 'G_OVER' }
+                ]
+            },
+            RE_03: {
+                path: "PHASE 2 // LOOP SEQUENCE",
+                title: "재구축 루프: 리부팅 프로토콜",
+                status: "ID: SYSTEM | STATUS: RESTORING",
+                text: "(지문 전) 암전 속에서 [Log Restoring... 100%]가 망막에 박힌다. 몰은 심폐소생술을 받은 듯 상체를 격하게 일으키며 숨을 들이켠다.\n\n(시스템): Log Restoring... 100%. 시점 복구 완료.\n\n(지문 후) 영혼이 압착되는 지독한 멀미와 고통이 밀려온다. 몰은 이를 악물고 다시 바이크 핸들을 꽉 쥐며 타임 루프의 서막을 기약한다.",
+                choices: [
+                    { text: "S03 추격 하이웨이로 재접속", info: "강제 이동", effect: {}, next: 'S03' }
+                ]
+            },
+            S06_BONUS: {
+                path: "PHASE 2 // ALLIANCE",
+                title: "협상: 암시장 (혁명가 인정)",
+                status: "ID: PIGEON | STATUS: TRUST",
+                text: "(지문 전) 비둘기가 검은 사이버 안경 너머로 몰의 파들거리는 손끝을 응시한다. 의수를 탁탁 튕기며 테이블에 무거운 앰플 두 개를 내려놓는다.\n\n비둘기: \"한스의 방화벽을 뚫고 싶나? 동지여, 자네의 강인한 인간성이 증명되었군. 여기 내 특제 모듈을 얹어주지. 이제... 괴물을 처단할 시간이다.\"\n\n(지문 후) 앰플의 안광이 몰의 얼굴을 반반씩 비춘다. 정밀한 복수냐, 광역 파괴냐의 기로에서 자신이 남겨둘 '인간성'의 무게를 저울질한다.",
+                choices: [
+                    { text: "정밀 복수 코드 제작", info: "신뢰+20 해킹-5", effect: { 신뢰도: 20, 해킹능력: -5 }, next: 'S07' },
+                    { text: "광역 시스템 폭탄 제작", info: "해킹+30 신뢰-30", effect: { 해킹능력: 30, 신뢰도: -30 }, next: 'S07' }
+                ]
+            },
+            S06_NORMAL: {
+                path: "PHASE 2 // ALLIANCE",
+                title: "협상: 암시장 (일반 거래)",
+                status: "ID: PIGEON | STATUS: TRADING",
+                text: "(지문 전) 비둘기가 검은 사이버 안경 너머로 몰의 파들거리는 손끝을 응시한다. 의수를 탁탁 튕기며 테이블에 무거운 앰플 두 개를 내려놓는다.\n\n비둘기: \"한스의 방화벽을 뚫고 싶나? 그럼 네 '인간성'을 증명해봐. 아님... 거래에 맞는 리스크를 지고 괴물이 되든가.\"\n\n(지문 후) 앰플의 안광이 몰의 얼굴을 반반씩 비춘다. 정밀한 복수냐, 광역 파괴냐의 기로에서 자신이 남겨둘 '인간성'의 무게를 저울질한다.",
+                choices: [
+                    { text: "정밀 복수 코드 제작", info: "신뢰+20 해킹-5", effect: { 신뢰도: 20, 해킹능력: -5 }, next: 'S07' },
+                    { text: "광역 시스템 폭탄 제작", info: "해킹+30 신뢰-30", effect: { 해킹능력: 30, 신뢰도: -30 }, next: 'S07' }
+                ]
+            },
+            S07: {
+                path: "PHASE 3 // CLIMAX",
+                title: "침투: 한스 펜트하우스",
+                status: "ID: H.A.N.S | STATUS: HOSTILE",
+                text: "(지문 전) 거대 안구가 붉은빛을 발하며 회전하고, 스피커가 찢어질 듯 울린다. 인간을 데이터로만 취급하는 오만함이 압도적인 중력으로 짓누른다.\n\nH.A.N.S: \"벌레 같은 고스트가 감히 신의 로그를 더럽려 드는가? 너를 이 그리드에서 완벽히 삭제하겠다.\"\n\n(지문 후) 압박감에 무릎이 꺾이려 하자 몰은 제 허벅지를 주먹으로 친다. 온몸에 실핏줄처럼 솟아오른 보라색 바이러스를 느끼며 방아쇠를 쥐어짜듯 잡는다.",
+                choices: [
+                    { text: "해커 지원 요청 (필요 신뢰도: 70)", info: "신뢰도 조건 체크", condition: () => state.신뢰도 >= 70, effect: {}, next: 'S08' },
+                    { text: "코어 직접 타격 (필요 해킹능력: 80)", info: "해킹능력 조건 체크", condition: () => state.해킹능력 >= 80, effect: {}, next: 'S08' }
+                ]
+            },
+            S08: {
+                path: "PHASE 3 // JUDGMENT",
+                title: "심판: 무너지는 신성",
+                status: "ID: MOLE | STATUS: JUDGMENT",
+                text: "(지문 전) 스파크가 튀는 의체 팔을 들어 올린다. 손끝에는 지독한 보라색 바이러스 덩어리가 꿀렁인다. 한스를 내려다보는 눈에 광기와 허무가 스친다.\n\n몰: \"이건 네가 하층부 서버에 버린 쓰레기 로그다. 이제 전능한 네 머리 위에 이 '똥'을 그대로 돌려주지.\"\n\n(지문 후) 주먹을 내지르며 코어에 데이터를 박아넣자 세상이 백색으로 번쩍인다. 폭풍 속에서 마지막 엔딩 코드를 입력하기 전 손가락이 미세하게 떨린다.",
+                choices: [
+                    { text: "데이터 해방 (전면 리부트)", info: "엔딩 A 분기", effect: {}, next: 'END_A_CALC' },
+                    { text: "시스템 승계 (공공화 선언)", info: "엔딩 B 분기", effect: {}, next: 'END_B_CALC' }
+                ]
+            },
+            END_A_S: {
+                path: "CONCLUSION // ENDING A-1",
+                title: "기술적 파괴 (True Ending)",
+                status: "ID: MOLE | STATUS: HUMAN_AWAKENED",
+                text: "도시의 모든 네온사인이 일제히 꺼졌다가 순수한 백색광으로 재부팅된다. 몰은 의체의 모든 구속과 노이즈가 풀린 채, 인간으로서의 숨결을 느끼며 무너진 난간에 걸터앉는다. 홀가분한 미소를 지으며 담배 한 개비에 불을 붙인다.\n\n암흑 속 심층 서버에 '// Mole was here.' 문구만이 차갑게 깜빡입니다.",
+                choices: [{ text: "시스템 재접속 (처음으로)", info: "RESET", effect: {}, next: 'RESTART' }]
+            },
+            END_A_I: {
+                path: "CONCLUSION // ENDING A-2",
+                title: "희생을 통한 정화 (True Ending)",
+                status: "ID: MOLE | STATUS: SACRIFICED",
+                text: "도시의 모든 네온사인이 일제히 꺼졌다가 순수한 백색광으로 재부팅된다. 몰은 의체의 모든 구속과 노이즈가 풀린 채, 인간으로서의 숨결을 느끼며 무너진 난간에 걸터앉는다. 홀가분한 미소를 지으며 담배 한 개비에 불을 붙인다.\n\n몰은 폭주하는 서버를 정화하기 위해 자신을 던져 리부트를 완수합니다. 완전한 초기화 속에서 몰의 서명만이 남아 전설이 됩니다.",
+                choices: [{ text: "시스템 재접속 (처음으로)", info: "RESET", effect: {}, next: 'RESTART' }]
+            },
+            END_B_I: {
+                path: "CONCLUSION // ENDING B-1",
+                title: "완벽한 해방 (Irony Ending)",
+                status: "ID: MOLE | STATUS: NEW_RULER",
+                text: "거대 안구가 사라진 자리에 몰의 얼굴을 한 홀로그램이 들어선다. 그의 안구가 차가운 적색으로 빛나며 표정은 완벽히 기계처럼 굳어버린다. 몰은 새로운 통제자가 되어 거대한 시스템 의자에 깊숙이 묻혀 앉아 도시를 굽어본다.\n\n모든 권한 로그가 하층민에게 공공 배분됩니다. 더 이상 부속품이 아닌 고유의 고스트로 이름을 되찾은 자들 사이에서 몰은 군림합니다.",
+                choices: [{ text: "시스템 재접속 (처음으로)", info: "RESET", effect: {}, next: 'RESTART' }]
+            },
+            END_B_S: {
+                path: "CONCLUSION // ENDING B-2",
+                title: "혼란 속의 질서 (Irony Ending)",
+                status: "ID: MOLE | STATUS: NEW_RULER",
+                text: "거대 안구가 사라진 자리에 몰의 얼굴을 한 홀로그램이 들어선다. 그의 안구가 차가운 적색으로 빛나며 표정은 완벽히 기계처럼 굳어버린다. 몰은 새로운 통제자가 되어 거대한 시스템 의자에 깊숙이 묻혀 앉아 도시를 굽어본다.\n\n로그가 공공화되었으나 기술적 패권 싸움이 터집니다. 몰은 해킹 능력을 등대 삼아 혼란 속에서 새로운 디지털 규율을 잡아나갑니다.",
+                choices: [{ text: "시스템 재접속 (처음으로)", info: "RESET", effect: {}, next: 'RESTART' }]
+            },
+            G_OVER: {
+                path: "SYSTEM TERMINATED // TERMINAL FAIL",
+                title: "시스템 포맷 (Game Over)",
+                status: "ID: SYSTEM | STATUS: ERASED",
+                text: "[System Error: Player Ghost Erased] 문구가 화면을 채운다. 몰의 눈동자가 회색으로 탁해지며 무릎을 꿇은 채 굳어간다. 신체가 데이터 가루가 되어 흩어지고, 차가운 정적 속에서 리트라이 프로토콜이 쓸쓸하게 점멸한다.",
+                choices: [
+                    { text: "시스템 재접속 (자동 원격 초기화)", info: "RETRY", effect: {}, next: 'RESTART' }
+                ]
+            }
+        };
+
+        function startTimer() {
+            if(timerInterval) clearInterval(timerInterval);
+            countdownTime = 3600;
+            timerInterval = setInterval(() => {
+                const clock = document.getElementById('clock');
+                let minutes = Math.floor(countdownTime / 60);
+                let seconds = countdownTime % 60;
+                clock.innerText = `${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`;
+                
+                if (countdownTime <= 0) {
+                    clearInterval(timerInterval);
+                    render('G_OVER'); 
+                }
+                countdownTime--;
+            }, 1000);
+        }
+
+        function updateUI() {
+            document.getElementById('v-bar').style.width = state.생명력 + '%';
+            document.getElementById('v-val').innerText = state.생명력;
+            
+            document.getElementById('c-bar').style.width = state.부패도 + '%';
+            document.getElementById('c-val').innerText = state.부패도;
+            
+            document.getElementById('h-bar').style.width = state.해킹능력 + '%';
+            document.getElementById('h-val').innerText = state.해킹능력;
+            
+            document.getElementById('i-bar').style.width = state.신뢰도 + '%';
+            document.getElementById('i-val').innerText = state.신뢰도;
+            
+            document.getElementById('n-bar').style.width = state.추적위험도 + '%';
+            document.getElementById('n-val').innerText = state.추적위험도;
+        }
+
+        function render(id) {
+            if (id === 'S02_CHECK') {
+                if (state.신뢰도 >= 60) { render('S02_FRIENDLY'); } 
+                else { render('S02_HOSTILE'); }
+                return;
+            }
+            if (id === 'S05_CHECK') {
+                if (state.생명력 <= 0) { render('G_OVER'); }
+                else { render('S05'); }
+                return;
+            }
+            if (id === 'END_A_CALC') {
+                if (state.해킹능력 > state.신뢰도) { render('END_A_S'); }
+                else { render('END_A_I'); }
+                return;
+            }
+            if (id === 'END_B_CALC') {
+                if (state.신뢰도 > state.해킹능력) { render('END_B_I'); }
+                else { render('END_B_S'); }
+                return;
+            }
+            if (id === 'RESTART') {
+                state = { 생명력: 100, 부패도: 85, 해킹능력: 20, 신뢰도: 50, 추적위험도: 10 };
+                s04Passed = false;
+                
+                const cover = document.getElementById('game-cover');
+                cover.style.display = 'flex';
+                cover.style.opacity = '1';
+                cover.style.transform = 'scale(1)';
+                
+                if(timerInterval) clearInterval(timerInterval);
+                document.getElementById('clock').innerText = "60:00";
+                
+                updateUI();
+                render('S01');
+                return;
+            }
+
+            const data = scenario[id];
+            if (!data) return;
+
+            if (id === 'S04') { s04Passed = true; }
+            if (id === 'S06') {
+                if (state.신뢰도 >= 80) { render('S06_BONUS'); return; }
+                else { render('S06_NORMAL'); return; }
+            }
+
+            const stageBox = document.getElementById('stage-box');
+            stageBox.innerHTML = ''; 
+
+            const textArea = document.getElementById('text-area');
+            textArea.style.opacity = '0';
+            
+            setTimeout(() => {
+                document.getElementById('path-display').innerText = data.path;
+                document.getElementById('title-display').innerText = data.title;
+                document.getElementById('status-label').innerText = data.status;
+                textArea.innerText = data.text;
+                textArea.style.opacity = '1';
+
+                const choiceArea = document.getElementById('choices');
+                choiceArea.innerHTML = '';
+                
+                data.choices.forEach(c => {
+                    const btn = document.createElement('div');
+                    btn.className = 'choice-card';
+                    
+                    let isAvailable = true;
+                    if (c.condition && !c.condition()) {
+                        isAvailable = false;
+                        btn.className += ' disabled';
+                    }
+
+                    let capsuleHtml = c.info ? `<span class="stat-capsule">${c.info}</span>` : '';
+                    btn.innerHTML = `<span class="node-prefix">NODE_CONNECT ></span><span>${c.text}</span>${capsuleHtml}`;
+                    
+                    if (isAvailable) {
+                        btn.onclick = () => {
+                            if(c.effect) {
+                                state.생명력 = Math.max(0, Math.min(100, state.생명력 + (c.effect.생명력 || 0)));
+                                state.부패도 = Math.max(0, Math.min(100, state.부패도 + (c.effect.부패도 || 0)));
+                                state.해킹능력 = Math.max(0, Math.min(100, state.해킹능력 + (c.effect.해킹능력 || 0)));
+                                state.신뢰도 = Math.max(0, Math.min(100, state.신뢰도 + (c.effect.신뢰도 || 0)));
+                                state.추적위험도 = Math.max(0, Math.min(100, state.추적위험도 + (c.effect.추적위험도 || 0)));
+                            }
+                            
+                            if (id === 'RE_03') {
+                                state.생명력 = Math.max(0, state.생명력 - 20);
+                                if (state.생명력 <= 0) {
+                                    updateUI();
+                                    render('G_OVER');
+                                    return;
+                                }
+                            }
+                            
+                            if (state.부패도 >= 100) {
+                                updateUI();
+                                render('G_OVER');
+                                return;
+                            }
+
+                            updateUI();
+                            render(c.next);
+                        };
+                    }
+                    choiceArea.appendChild(btn);
+                });
+            }, 200);
+        }
+
+        window.onload = () => {
+            updateUI();
+            render('S01');
+        };
+    </script>
+</body>
+</html>
