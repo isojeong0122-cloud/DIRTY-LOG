@@ -39,6 +39,13 @@
             transition: opacity 0.5s ease, transform 0.5s ease;
         }
         .cover-content { text-align: center; z-index: 5; }
+        #cover-video-bg {
+            position: absolute; inset: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            opacity: 0.5;
+            z-index: 1;
+        }
         
 @keyframes titlePulse {
     0%, 100% {
@@ -119,6 +126,7 @@
 </head>
 <body>
     <div id="game-cover">
+        <video id="cover-video-bg" src="cover.mp4" autoplay muted loop playsinline></video>
         <div class="cover-content">
             <div class="cover-title">DIRTY LOG</div>
             <div class="cover-desc">
@@ -182,6 +190,7 @@
 
     <section id="stage">
         <div class="stage-display-box" id="stage-box"></div>
+        <audio id="scene-audio"></audio>
         <div class="hud-display">
             LOC: 35.6895 // SYSTEM_SYNC: <span id="clock">60:00</span>
         </div>
@@ -199,6 +208,7 @@
         let s04Passed = false; 
         let countdownTime = 3600; 
         let timerInterval;
+        let coverActive = true;
 
         function pressStart() {
             const cover = document.getElementById('game-cover');
@@ -206,6 +216,11 @@
             cover.style.transform = 'scale(1.05)';
             setTimeout(() => {
                 cover.style.display = 'none';
+                coverActive = false;
+                const sceneAudio = document.getElementById('scene-audio');
+                if (sceneAudio.getAttribute('data-current')) {
+                    sceneAudio.play().catch(() => {});
+                }
                 startTimer();
             }, 500);
         }
@@ -215,7 +230,7 @@
                 path: "PHASE 1 // DATA TRACKING",
                 title: "낙인: 42구역",
                 status: "ID: MOLE | STATUS: RUNNING",
-                text: "(지문 전) 타들어 가는 목덜미 소켓을 움켜쥐며 스파크 속에 미간을 찢어버린다. 벽에 거칠게 몸을 기대어 간신히 중심을 잡고 뱉어낸다.\n\n몰: \"누가 내 서버에 이딴 쓰레기를 버린 거야? 이대로면 1시간 뒤에 난 '포맷'이라고!\"\n\n(지문 후) 손바닥을 바라보자 인공 피부가 보라색 데이터 찌꺼기로 변색되고 있다. 떨리는 손으로 홀로그램 패널을 띄우며 망설인다.",
+                text: "타들어 가는 목덜미 소켓을 움켜쥐며 스파크 속에 미간을 찢어버린다. 벽에 거칠게 몸을 기대어 간신히 중심을 잡고 뱉어낸다.\n\n몰: \"누가 내 서버에 이딴 쓰레기를 버린 거야? 이대로면 1시간 뒤에 난 '포맷'이라고!\"\n\n손바닥을 바라보자 인공 피부가 보라색 데이터 찌꺼기로 변색되고 있다. 떨리는 손으로 홀로그램 패널을 띄우며 망설인다.",
                 choices: [
                     { text: "시스템 정밀 분석", info: "해킹+15 위험+5", effect: { 해킹능력: 15, 추적위험도: 5 }, next: 'S02_CHECK' },
                     { text: "강제 로그 우회", info: "해킹-10 신뢰+15", effect: { 해킹능력: -10, 신뢰도: 15 }, next: 'S02_CHECK' }
@@ -225,7 +240,7 @@
                 path: "PHASE 1 // EVIDENCE",
                 title: "대조: 폐기물 처리장 (우호)",
                 status: "ID: OX | STATUS: FRIENDLY",
-                text: "(지문 전) 소가 육중한 고개를 까딱이자 냉각 밸브에서 고압 증기가 뿜어진다. 규격화된 시스템에 집착하는 기계적 독백이 이어진다.\n\n소: \"내 로그는 규격품이다. 네 오염된 데이터와 내 로그를 대조하는 건 본래 시스템 모독이지만... 네 진정성을 보아 협상 코드를 열어주지.\"\n\n(지문 후) 거대한 피스톤 팔이 진동하자 몰은 마른침을 삼킨다. 정면 돌파와 수리 협상 사이에서 손가락을 미세하게 까딱인다.",
+                text: "소가 육중한 고개를 까딱이자 냉각 밸브에서 고압 증기가 뿜어진다. 규격화된 시스템에 집착하는 기계적 독백이 이어진다.\n\n소: \"내 로그는 규격품이다. 네 오염된 데이터와 내 로그를 대조하는 건 본래 시스템 모독이지만... 네 진정성을 보아 협상 코드를 열어주지.\"\n\n거대한 피스톤 팔이 진동하자 몰은 마른침을 삼킨다. 정면 돌파와 수리 협상 사이에서 손가락을 미세하게 까딱인다.",
                 choices: [
                     { text: "시스템 강제 해킹", info: "해킹+20 신뢰-20", effect: { 해킹능력: 20, 신뢰도: -20 }, next: 'S03' },
                     { text: "냉각 장치 수리 협상", info: "신뢰+20 위험-10", effect: { 신뢰도: 20, 추적위험도: -10 }, next: 'S03' }
@@ -235,7 +250,7 @@
                 path: "PHASE 1 // EVIDENCE",
                 title: "대조: 폐기물 처리장 (적대)",
                 status: "ID: OX | STATUS: HOSTILE",
-                text: "(지문 전) 소가 육중한 고개를 까딱이자 냉각 밸브에서 고압 증기가 뿜어진다. 규격화된 시스템에 집착하는 기계적 독백이 이어진다.\n\n소: \"내 로그는 규격품이다. 네 오염된 데이터와 내 로그를 대조하는 건 시스템 모독이다. 쓰레기는 압착기가 처리한다.\"\n\n(지문 후) 거대한 피스톤 팔이 진동하자 몰은 마른침을 삼킨다. 정면 돌파와 수리 협상 사이에서 손가락을 미세하게 까딱인다.",
+                text: "소가 육중한 고개를 까딱이자 냉각 밸브에서 고압 증기가 뿜어진다. 규격화된 시스템에 집착하는 기계적 독백이 이어진다.\n\n소: \"내 로그는 규격품이다. 네 오염된 데이터와 내 로그를 대조하는 건 시스템 모독이다. 쓰레기는 압착기가 처리한다.\"\n\n거대한 피스톤 팔이 진동하자 몰은 마른침을 삼킨다. 정면 돌파와 수리 협상 사이에서 손가락을 미세하게 까딱인다.",
                 choices: [
                     { text: "시스템 강제 해킹", info: "해킹+20 신뢰-20", effect: { 해킹능력: 20, 신뢰도: -20 }, next: 'S03' },
                     { text: "냉각 장치 수리 협상", info: "신뢰+20 위험-10", effect: { 신뢰도: 20, 추적위험도: -10 }, next: 'S03' }
@@ -245,7 +260,7 @@
                 path: "PHASE 2 // PURSUIT",
                 title: "추격: 하이웨이",
                 status: "ID: RABBIT | STATUS: PURSUIT",
-                text: "(지문 전) 토끼가 헬멧 바이저를 올리며 백미러로 몰을 비웃는다. 손가락으로 V를 그리며 조롱의 텍스트를 통신망에 꽂아 넣는다.\n\n토끼: \"잡아보시지, 하층민! 내 전송 속도는 네 구식 의체로는 절대 못 따라잡아!\"\n\n(지문 후) 토끼가 부스터를 당겨 멀어진다. 몰은 과열된 계기판과 붉은 경고등을 보며 코어를 불태울지 연산할지 순간적으로 멈칫한다.",
+                text: "토끼가 헬멧 바이저를 올리며 백미러로 몰을 비웃는다. 손가락으로 V를 그리며 조롱의 텍스트를 통신망에 꽂아 넣는다.\n\n토끼: \"잡아보시지, 하층민! 내 전송 속도는 네 구식 의체로는 절대 못 따라잡아!\"\n\n토끼가 부스터를 당겨 멀어진다. 몰은 과열된 계기판과 붉은 경고등을 보며 코어를 불태울지 연산할지 순간적으로 멈칫한다.",
                 choices: [
                     { text: "경로 예측 해킹 (필요 해킹능력: 70)", info: "해킹+15 위험+10", condition: () => state.해킹능력 >= 70, effect: { 해킹능력: 15, 추적위험도: 10 }, next: 'S04' },
                     { text: "신체 엔진 오버클럭 (강제 실행 위험)", info: "해킹-10 생명-20", condition: () => true, effect: { 해킹능력: -10, 생명력: -20 }, next: 'S05_CHECK' }
@@ -255,7 +270,7 @@
                 path: "PHASE 2 // EVIDENCE",
                 title: "포획: 토끼 제압 완료",
                 status: "ID: MOLE | STATUS: EXTRACTING",
-                text: "(지문 전) 몰은 거칠게 숨을 몰아쉬며, 겁에 질린 토끼의 뒷덜미에 데이터 케이블을 사정없이 꽂아 넣는다. 토끼의 몸이 파르르 떨린다.\n\n(지문): 몰은 토끼의 메모리에서 한스의 보안 취약점이 담긴 패킷을 찾아낸다. 이 약점은 최종 본거지 침투 시 방화벽을 우회하는 열쇠가 될 것이다.\n\n(지문 후) 복수심에 가득 찬 눈으로 순백의 약점 패킷을 응시하던 몰은, 이내 결심한 듯 케이블을 난폭하게 뽑아내며 비둘기를 떠올린다.",
+                text: "몰은 거칠게 숨을 몰아쉬며, 겁에 질린 토끼의 뒷덜미에 데이터 케이블을 사정없이 꽂아 넣는다. 토끼의 몸이 파르르 떨린다.\n\n(지문): 몰은 토끼의 메모리에서 한스의 보안 취약점이 담긴 패킷을 찾아낸다. 이 약점은 최종 본거지 침투 시 방화벽을 우회하는 열쇠가 될 것이다.\n\n복수심에 가득 찬 눈으로 순백의 약점 패킷을 응시하던 몰은, 이내 결심한 듯 케이블을 난폭하게 뽑아내며 비둘기를 떠올린다.",
                 choices: [
                     { text: "암시장 비둘기 접선 통로 진입 (무기 거래)", info: "보안 약점 확보", effect: {}, next: 'S06' }
                 ]
@@ -264,7 +279,7 @@
                 path: "PHASE 2 // ALLIANCE MISERY",
                 title: "미궁: 시스템 과부하 고립",
                 status: "ID: MOLE | STATUS: MISERY",
-                text: "(지문 전) 사방의 벽이 무한 복제되며 무너진다. 시야의 기하학적 형상들이 자신을 비웃는 한스의 얼굴로 보이자 공포에 질려 비명을 지른다.\n\n몰: \"젠장, 데이터가 엉망이야... 여기서 못 나가면 그대로 자아 분열이라고!\"\n\n(지문 후) 유령 같은 제어 콘솔을 붙잡으려 허우적거린다. 리부팅의 위험과 전멸의 공포 사이에서 몰의 손끝이 차갑게 식어간다.",
+                text: "사방의 벽이 무한 복제되며 무너진다. 시야의 기하학적 형상들이 자신을 비웃는 한스의 얼굴로 보이자 공포에 질려 비명을 지른다.\n\n몰: \"젠장, 데이터가 엉망이야... 여기서 못 나가면 그대로 자아 분열이라고!\"\n\n유령 같은 제어 콘솔을 붙잡으려 허우적거린다. 리부팅의 위험과 전멸의 공포 사이에서 몰의 손끝이 차갑게 식어간다.",
                 choices: [
                     { text: "로그 재구축 시도 (리부팅 패키지)", info: "생명력 -20 대가", effect: {}, next: 'RE_03' },
                     { text: "접속 종료 (자멸 프로토콜)", info: "GAME OVER", effect: {}, next: 'G_OVER' }
@@ -274,7 +289,7 @@
                 path: "PHASE 2 // LOOP SEQUENCE",
                 title: "재구축 루프: 리부팅 프로토콜",
                 status: "ID: SYSTEM | STATUS: RESTORING",
-                text: "(지문 전) 암전 속에서 [Log Restoring... 100%]가 망막에 박힌다. 몰은 심폐소생술을 받은 듯 상체를 격하게 일으키며 숨을 들이켠다.\n\n(시스템): Log Restoring... 100%. 시점 복구 완료.\n\n(지문 후) 영혼이 압착되는 지독한 멀미와 고통이 밀려온다. 몰은 이를 악물고 다시 바이크 핸들을 꽉 쥐며 타임 루프의 서막을 기약한다.",
+                text: "암전 속에서 [Log Restoring... 100%]가 망막에 박힌다. 몰은 심폐소생술을 받은 듯 상체를 격하게 일으키며 숨을 들이켠다.\n\n(시스템): Log Restoring... 100%. 시점 복구 완료.\n\n영혼이 압착되는 지독한 멀미와 고통이 밀려온다. 몰은 이를 악물고 다시 바이크 핸들을 꽉 쥐며 타임 루프의 서막을 기약한다.",
                 choices: [
                     { text: "S03 추격 하이웨이로 재접속", info: "강제 이동", effect: {}, next: 'S03' }
                 ]
@@ -283,7 +298,7 @@
                 path: "PHASE 2 // ALLIANCE",
                 title: "협상: 암시장 (혁명가 인정)",
                 status: "ID: PIGEON | STATUS: TRUST",
-                text: "(지문 전) 비둘기가 검은 사이버 안경 너머로 몰의 파들거리는 손끝을 응시한다. 의수를 탁탁 튕기며 테이블에 무거운 앰플 두 개를 내려놓는다.\n\n비둘기: \"한스의 방화벽을 뚫고 싶나? 동지여, 자네의 강인한 인간성이 증명되었군. 여기 내 특제 모듈을 얹어주지. 이제... 괴물을 처단할 시간이다.\"\n\n(지문 후) 앰플의 안광이 몰의 얼굴을 반반씩 비춘다. 정밀한 복수냐, 광역 파괴냐의 기로에서 자신이 남겨둘 '인간성'의 무게를 저울질한다.",
+                text: "비둘기가 검은 사이버 안경 너머로 몰의 파들거리는 손끝을 응시한다. 의수를 탁탁 튕기며 테이블에 무거운 앰플 두 개를 내려놓는다.\n\n비둘기: \"한스의 방화벽을 뚫고 싶나? 동지여, 자네의 강인한 인간성이 증명되었군. 여기 내 특제 모듈을 얹어주지. 이제... 괴물을 처단할 시간이다.\"\n\n앰플의 안광이 몰의 얼굴을 반반씩 비춘다. 정밀한 복수냐, 광역 파괴냐의 기로에서 자신이 남겨둘 '인간성'의 무게를 저울질한다.",
                 choices: [
                     { text: "정밀 복수 코드 제작", info: "신뢰+20 해킹-5", effect: { 신뢰도: 20, 해킹능력: -5 }, next: 'S07' },
                     { text: "광역 시스템 폭탄 제작", info: "해킹+30 신뢰-30", effect: { 해킹능력: 30, 신뢰도: -30 }, next: 'S07' }
@@ -293,7 +308,7 @@
                 path: "PHASE 2 // ALLIANCE",
                 title: "협상: 암시장 (일반 거래)",
                 status: "ID: PIGEON | STATUS: TRADING",
-                text: "(지문 전) 비둘기가 검은 사이버 안경 너머로 몰의 파들거리는 손끝을 응시한다. 의수를 탁탁 튕기며 테이블에 무거운 앰플 두 개를 내려놓는다.\n\n비둘기: \"한스의 방화벽을 뚫고 싶나? 그럼 네 '인간성'을 증명해봐. 아님... 거래에 맞는 리스크를 지고 괴물이 되든가.\"\n\n(지문 후) 앰플의 안광이 몰의 얼굴을 반반씩 비춘다. 정밀한 복수냐, 광역 파괴냐의 기로에서 자신이 남겨둘 '인간성'의 무게를 저울질한다.",
+                text: "비둘기가 검은 사이버 안경 너머로 몰의 파들거리는 손끝을 응시한다. 의수를 탁탁 튕기며 테이블에 무거운 앰플 두 개를 내려놓는다.\n\n비둘기: \"한스의 방화벽을 뚫고 싶나? 그럼 네 '인간성'을 증명해봐. 아님... 거래에 맞는 리스크를 지고 괴물이 되든가.\"\n\n앰플의 안광이 몰의 얼굴을 반반씩 비춘다. 정밀한 복수냐, 광역 파괴냐의 기로에서 자신이 남겨둘 '인간성'의 무게를 저울질한다.",
                 choices: [
                     { text: "정밀 복수 코드 제작", info: "신뢰+20 해킹-5", effect: { 신뢰도: 20, 해킹능력: -5 }, next: 'S07' },
                     { text: "광역 시스템 폭탄 제작", info: "해킹+30 신뢰-30", effect: { 해킹능력: 30, 신뢰도: -30 }, next: 'S07' }
@@ -303,7 +318,7 @@
                 path: "PHASE 3 // CLIMAX",
                 title: "침투: 한스 펜트하우스",
                 status: "ID: H.A.N.S | STATUS: HOSTILE",
-                text: "(지문 전) 거대 안구가 붉은빛을 발하며 회전하고, 스피커가 찢어질 듯 울린다. 인간을 데이터로만 취급하는 오만함이 압도적인 중력으로 짓누른다.\n\nH.A.N.S: \"벌레 같은 고스트가 감히 신의 로그를 더럽리려 드는가? 너를 이 그리드에서 완벽히 삭제하겠다.\"\n\n(지문 후) 압박감에 무릎이 꺾이려 하자 몰은 제 허벅지를 주먹으로 친다. 온몸에 실핏줄처럼 솟아오른 보라색 바이러스를 느끼며 방아쇠를 쥐어짜듯 잡는다.",
+                text: "거대 안구가 붉은빛을 발하며 회전하고, 스피커가 찢어질 듯 울린다. 인간을 데이터로만 취급하는 오만함이 압도적인 중력으로 짓누른다.\n\nH.A.N.S: \"벌레 같은 고스트가 감히 신의 로그를 더럽리려 드는가? 너를 이 그리드에서 완벽히 삭제하겠다.\"\n\n압박감에 무릎이 꺾이려 하자 몰은 제 허벅지를 주먹으로 친다. 온몸에 실핏줄처럼 솟아오른 보라색 바이러스를 느끼며 방아쇠를 쥐어짜듯 잡는다.",
                 choices: [
                     { text: "해커 지원 요청 (필요 신뢰도: 70)", info: "신뢰도 조건 체크", condition: () => state.신뢰도 >= 70, effect: {}, next: 'S08' },
                     { text: "코어 직접 타격 (필요 해킹능력: 80)", info: "해킹능력 조건 체크", condition: () => state.해킹능력 >= 80, effect: {}, next: 'S08' }
@@ -313,7 +328,7 @@
                 path: "PHASE 3 // JUDGMENT",
                 title: "심판: 무너지는 신성",
                 status: "ID: MOLE | STATUS: JUDGMENT",
-                text: "(지문 전) 스파크가 튀는 의체 팔을 들어 올린다. 손끝에는 지독한 보라색 바이러스 덩어리가 꿀렁인다. 한스를 내려다보는 눈에 광기와 허무가 스친다.\n\n몰: \"이건 네가 하층부 서버에 버린 쓰레기 로그다. 이제 전능한 네 머리 위에 이 '똥'을 그대로 돌려주지.\"\n\n(지문 후) 주먹을 내지르며 코어에 데이터를 박아넣자 세상이 백색으로 번쩍인다. 폭풍 속에서 마지막 엔딩 코드를 입력하기 전 손가락이 미세하게 떨린다.",
+                text: "스파크가 튀는 의체 팔을 들어 올린다. 손끝에는 지독한 보라색 바이러스 덩어리가 꿀렁인다. 한스를 내려다보는 눈에 광기와 허무가 스친다.\n\n몰: \"이건 네가 하층부 서버에 버린 쓰레기 로그다. 이제 전능한 네 머리 위에 이 '똥'을 그대로 돌려주지.\"\n\n주먹을 내지르며 코어에 데이터를 박아넣자 세상이 백색으로 번쩍인다. 폭풍 속에서 마지막 엔딩 코드를 입력하기 전 손가락이 미세하게 떨린다.",
                 choices: [
                     { text: "데이터 해방 (전면 리부트)", info: "엔딩 A 분기", effect: {}, next: 'END_A_CALC' },
                     { text: "시스템 승계 (공공화 선언)", info: "엔딩 B 분기", effect: {}, next: 'END_B_CALC' }
@@ -421,6 +436,7 @@
                 cover.style.display = 'flex';
                 cover.style.opacity = '1';
                 cover.style.transform = 'scale(1)';
+                coverActive = true;
                 
                 if(timerInterval) clearInterval(timerInterval);
                 document.getElementById('clock').innerText = "60:00";
@@ -454,12 +470,13 @@
 
                 let mediaName = '';
                 let isVideo = false;
+                let audioName = '';
 
-                if (id === 'S01') { mediaName = 'S01.mp4'; isVideo = true; }
-                else if (id === 'S02_FRIENDLY' || id === 'S02_HOSTILE') { mediaName = 'S02.mp4'; isVideo = true; }
-                else if (id === 'S03') { mediaName = 'S03.mp4'; isVideo = true; }
+                if (id === 'S01') { mediaName = 'S01.mp4'; isVideo = true; audioName = 'S01.mp3'; }
+                else if (id === 'S02_FRIENDLY' || id === 'S02_HOSTILE') { mediaName = 'S02.mp4'; isVideo = true; audioName = 'S02.mp3'; }
+                else if (id === 'S03') { mediaName = 'S03.mp4'; isVideo = true; audioName = 'S03.mp3'; }
                 else if (id === 'S04') { mediaName = 'S04.mp4'; isVideo = true; }
-                else if (id === 'S05') { mediaName = 'S05.mp4'; isVideo = true; }
+                else if (id === 'S05') { mediaName = 'S05.mp4'; isVideo = true; audioName = 'S05.mp3'; }
                 else if (id === 'RE_03') { mediaName = 'RE_03.mp4'; isVideo = true; }
                 else if (id === 'S06_BONUS') { mediaName = 'S06_BONUS.mp4'; isVideo = true; }
                 else if (id === 'S06_NORMAL') { mediaName = 'S06_NORMAL.mp4'; isVideo = true; }
@@ -470,6 +487,21 @@
                 else if (id === 'END_B_I') { mediaName = 'END_B_I.mp4'; isVideo = true; }
                 else if (id === 'END_B_S') { mediaName = 'END_B_S.mp4'; isVideo = true; }
                 else if (id === 'G_OVER') { mediaName = 'G_OVER.mp4'; isVideo = true; }
+
+                const sceneAudio = document.getElementById('scene-audio');
+                if (audioName) {
+                    if (sceneAudio.getAttribute('data-current') !== audioName) {
+                        sceneAudio.src = audioName;
+                        sceneAudio.setAttribute('data-current', audioName);
+                        if (!coverActive) {
+                            sceneAudio.play().catch(() => {});
+                        }
+                    }
+                } else {
+                    sceneAudio.pause();
+                    sceneAudio.removeAttribute('src');
+                    sceneAudio.removeAttribute('data-current');
+                }
 
                 if (mediaName) {
                     if (isVideo) {
