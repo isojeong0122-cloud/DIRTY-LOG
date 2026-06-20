@@ -126,7 +126,7 @@
 </head>
 <body>
     <div id="game-cover">
-        <video id="cover-video-bg" src="cover.mp4" autoplay muted loop playsinline></video>
+        <video id="cover-video-bg" src="video/cover.mp4" autoplay muted loop playsinline></video>
         <div class="cover-content">
             <div class="cover-title">DIRTY LOG</div>
             <div class="cover-desc">
@@ -472,21 +472,21 @@
                 let isVideo = false;
                 let audioName = '';
 
-                if (id === 'S01') { mediaName = 'S01.mp4'; isVideo = true; audioName = 'S01.mp3'; }
-                else if (id === 'S02_FRIENDLY' || id === 'S02_HOSTILE') { mediaName = 'S02.mp4'; isVideo = true; audioName = 'S02.mp3'; }
-                else if (id === 'S03') { mediaName = 'S03.mp4'; isVideo = true; audioName = 'S03.mp3'; }
-                else if (id === 'S04') { mediaName = 'S04.mp4'; isVideo = true; }
-                else if (id === 'S05') { mediaName = 'S05.mp4'; isVideo = true; audioName = 'S05.mp3'; }
-                else if (id === 'RE_03') { mediaName = 'RE_03.mp4'; isVideo = true; }
-                else if (id === 'S06_BONUS') { mediaName = 'S06_BONUS.mp4'; isVideo = true; }
-                else if (id === 'S06_NORMAL') { mediaName = 'S06_NORMAL.mp4'; isVideo = true; }
-                else if (id === 'S07') { mediaName = 'S07.mp4'; isVideo = true; }
-                else if (id === 'S08') { mediaName = 'S08.mp4'; isVideo = true; }
-                else if (id === 'END_A_S') { mediaName = 'END_A_S.mp4'; isVideo = true; }
-                else if (id === 'END_A_I') { mediaName = 'END_A_I.mp4'; isVideo = true; }
-                else if (id === 'END_B_I') { mediaName = 'END_B_I.mp4'; isVideo = true; }
-                else if (id === 'END_B_S') { mediaName = 'END_B_S.mp4'; isVideo = true; }
-                else if (id === 'G_OVER') { mediaName = 'G_OVER.mp4'; isVideo = true; }
+                if (id === 'S01') { mediaName = 'video/S01.mp4'; isVideo = true; audioName = 'audio/S01.mp3'; }
+                else if (id === 'S02_FRIENDLY' || id === 'S02_HOSTILE') { mediaName = 'video/S02.mp4'; isVideo = true; audioName = 'audio/S02.mp3'; }
+                else if (id === 'S03') { mediaName = 'video/S03.mp4'; isVideo = true; audioName = 'audio/S03.mp3'; }
+                else if (id === 'S04') { mediaName = 'video/S04.mp4'; isVideo = true; }
+                else if (id === 'S05') { mediaName = 'video/S05.mp4'; isVideo = true; audioName = 'audio/S05.mp3'; }
+                else if (id === 'RE_03') { mediaName = 'video/RE_03.mp4'; isVideo = true; }
+                else if (id === 'S06_BONUS') { mediaName = 'video/S06_BONUS.mp4'; isVideo = true; }
+                else if (id === 'S06_NORMAL') { mediaName = 'video/S06_NORMAL.mp4'; isVideo = true; }
+                else if (id === 'S07') { mediaName = 'video/S07.mp4'; isVideo = true; }
+                else if (id === 'S08') { mediaName = 'video/S08.mp4'; isVideo = true; }
+                else if (id === 'END_A_S') { mediaName = 'video/END_A_S.mp4'; isVideo = true; }
+                else if (id === 'END_A_I') { mediaName = 'video/END_A_I.mp4'; isVideo = true; }
+                else if (id === 'END_B_I') { mediaName = 'video/END_B_I.mp4'; isVideo = true; }
+                else if (id === 'END_B_S') { mediaName = 'video/END_B_S.mp4'; isVideo = true; }
+                else if (id === 'G_OVER') { mediaName = 'video/G_OVER.mp4'; isVideo = true; }
 
                 const sceneAudio = document.getElementById('scene-audio');
                 if (audioName) {
